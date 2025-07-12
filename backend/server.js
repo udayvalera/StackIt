@@ -12,6 +12,7 @@ const adminRoutes = require('./routes/admin/adminRoutes');
 const userRoutes = require('./routes/user/userRoutes');
 const questionRoutes = require('./routes/question/questionRoutes');
 const mediaRoutes = require('./routes/media/mediaRoutes');
+const answerRoutes = require('./routes/answer/answerRoutes');
 
 // Middleware
 app.use(express.urlencoded({ extended: true }));
@@ -32,7 +33,7 @@ app.use("/api/admin", adminRoutes);
 app.use("/api/user", userRoutes);
 app.use("/api/question", questionRoutes);
 app.use("/api/media", mediaRoutes);
-
+app.use("/api/answer", answerRoutes);
 
 app.listen(PORT, () => {
   console.log(`Server is running on http://localhost:${PORT}`);
