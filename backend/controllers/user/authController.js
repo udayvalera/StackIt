@@ -105,7 +105,6 @@ const userLogin = async (req, res) => {
     if (!user) {
       return res.status(401).json({ message: 'Invalid credentials' });
     }
-
     // Compare provided password with hashed password in the database
     const isMatch = await bcrypt.compare(password, user.password);
 
@@ -179,7 +178,7 @@ const userVerify = async (req, res) => {
     // Find the user by ID from the decoded token
     const user = await prisma.user.findUnique({
       where: {
-        id: decoded.userId,
+        id: decoded.id,
       },
       select: { // Select only necessary fields to send back
         id: true,

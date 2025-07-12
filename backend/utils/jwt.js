@@ -4,13 +4,13 @@ const jwt = require('jsonwebtoken');
 
 /**
  * Generates a JWT.
- * @param {string} userId - The user's ID to include in the payload (corresponds to User.id).
+ * @param {string} id - The user's ID to include in the payload (corresponds to User.id).
  * @param {string} role - The user's role to include in the payload (corresponds to User.role).
  * @returns {string} The generated JSON Web Token.
  */
-const generateToken = (userId, role) => {
+const generateToken = (id, role) => {
   const payload = {
-    userId, // Using userId to match the name in the User model's id field
+    id, // Using id to match the name in the User model's id field
     role,
   };
   return jwt.sign(payload, process.env.JWT_SECRET, {
