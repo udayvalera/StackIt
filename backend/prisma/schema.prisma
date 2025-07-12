@@ -1,0 +1,115 @@
+datasource db {
+  provider = "mongodb"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../generated/prisma"
+}
+
+
+// 3. Define Enumerations for Roles and Notification Types
+enum Role {
+  USER
+  ADMIN
+}
+
+enum NotificationType {
+  NEW_ANSWER
+  NEW_COMMENT
+  MENTION
+}
+
+// 4. Define the Data Models
+
+// User model for authentication and authoring content
+model User {
+  id                 String    @id @default(auto()) @map("_id") @db.ObjectId
+  username           String    @unique
+  email              String    @unique
+  password           String
+  role               Role      @default(USER)
+  createdAt          DateTime  @default(now())
+
+  // Relations
+  questions          Question[]
+  answers            Answer[]
+  notifications      Notification[]
+  
+  upvotedAnswers     Answer[] @relation("Upvotes", fields: [upvotedAnswerIds], references: [id])
+  upvotedAnswerIds   String[] @db.ObjectId
+
+  downvotedAnswers   Answer[] @relation("Downvotes", fields: [downvotedAnswerIds], references: [id])
+  downvotedAnswerIds String[] @db.ObjectId
+}
+
+// Question model for all posts
+model Question {
+  id               String    @id @default(auto()) @map("_id") @db.ObjectId
+  title            String
+  description      Json
+  createdAt        DateTime  @default(now())
+
+  // Relations
+  author           User      @relation(fields: [authorId], references: [id])
+  authorId         String    @db.ObjectId
+  
+  tags             Tag[]     @relation(fields: [tagIds], references: [id])
+  tagIds           String[]  @db.ObjectId
+
+  answers          Answer[]
+  acceptedAnswer   Answer?   @relation("AcceptedAnswer", fields: [acceptedAnswerId], references: [id])
+  acceptedAnswerId String?   @unique @db.ObjectId
+
+  notifications    Notification[]
+}
+
+// Answer model for replies to questions
+model Answer {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  content   Json
+  createdAt DateTime @default(now())
+
+  // Relations
+  // CORRECTED: Added onDelete and onUpdate to break the reference cycle.
+  question  Question @relation(fields: [questionId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  questionId String  @db.ObjectId
+
+  author    User     @relation(fields: [authorId], references: [id])
+  authorId  String   @db.ObjectId
+  
+  upvotedBy      User[]   @relation("Upvotes", fields: [upvotedByIds], references: [id])
+  upvotedByIds   String[] @db.ObjectId
+
+  downvotedBy    User[]   @relation("Downvotes", fields: [downvotedByIds], references: [id])
+  downvotedByIds String[] @db.ObjectId
+  
+  isAcceptedAnswerFor Question? @relation("AcceptedAnswer")
+}
+
+// Tag model for categorizing questions
+model Tag {
+  id   String @id @default(auto()) @map("_id") @db.ObjectId
+  name String @unique
+
+  // Relations
+  questions   Question[] @relation(fields: [questionIds], references: [id])
+  questionIds String[]   @db.ObjectId
+}
+
+// Notification model for user alerts
+model Notification {
+  id         String           @id @default(auto()) @map("_id") @db.ObjectId
+  type       NotificationType
+  message    String
+  isRead     Boolean          @default(false)
+  createdAt  DateTime         @default(now())
+
+  // Relations
+  user       User             @relation(fields: [userId], references: [id])
+  userId     String           @db.ObjectId
+  
+  question   Question         @relation(fields: [questionId], references: [id])
+  questionId String           @db.ObjectId
+}
