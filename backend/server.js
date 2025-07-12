@@ -10,7 +10,8 @@ const PORT = process.env.PORT || 3000;
 //Routes
 const adminRoutes = require('./routes/admin/adminRoutes');
 const userRoutes = require('./routes/user/userRoutes');
-
+const questionRoutes = require('./routes/question/questionRoutes');
+const mediaRoutes = require('./routes/media/mediaRoutes');
 
 // Middleware
 app.use(express.urlencoded({ extended: true }));
@@ -29,6 +30,8 @@ app.get("/", (req, res) => {
 
 app.use("/api/admin", adminRoutes);
 app.use("/api/user", userRoutes);
+app.use("/api/question", questionRoutes);
+app.use("/api/media", mediaRoutes);
 
 
 app.listen(PORT, () => {
