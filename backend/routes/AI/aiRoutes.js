@@ -2,6 +2,7 @@ const express = require("express");
 const { generateAIResponse } = require("../../controllers/AI/aiController");
 const router = express.Router();
 
-router.post("/:questionId",generateAIResponse);
+// Route to generate AI response for any question data
+router.post("/generate", generateAIResponse);
 
 module.exports = router;

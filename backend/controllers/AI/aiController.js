@@ -5,12 +5,13 @@ const prisma = new PrismaClient();
 
 /**
  * @AI_response
- * @route POST /api/ai/:questionId
- * @queryparam {string} answerbyAI
- */
+ * @route POST /api/ai/generate
+ * @body {string} questionId - The question ID to generate AI response for
+ * @queryparams {boolean} answerbyAI - set to true if you want ai to answer your question
+ */ 
 const generateAIResponse = async (req, res) => {
   try {
-    const { questionId } = req.params;
+    const { questionId } = req.body;
     const { answerbyAI } = req.query;
 
     if (!questionId) {
@@ -20,23 +21,16 @@ const generateAIResponse = async (req, res) => {
       });
     }
 
-    // Mock data for testing when database is not available
-    const mockQuestion = {
-      id: questionId,
-      title: "How to implement authentication in Node.js?",
-      description: {
-        text: "How to implement JWT authentication in React?"
-      },
-      tags: [
-        { name: "nodejs" },
-        { name: "authentication" },
-        { name: "security" }
-      ]
-    };
+    if (answerbyAI !== "true") {
+        return res.status(400).json({
+            success: false,
+            message: "answerbyAI parameter is required"
+        });
+    }
 
+    // Fetch question data from database
     let question;
     try {
-      // Try to fetch from database first
       question = await prisma.question.findUnique({
         where: { id: questionId },
         include: {
@@ -46,8 +40,11 @@ const generateAIResponse = async (req, res) => {
         }
       });
     } catch (dbError) {
-      console.log("Database not available, using mock data");
-      question = mockQuestion;
+      console.error("Database error:", dbError);
+      return res.status(500).json({
+        success: false,
+        message: "Database connection error"
+      });
     }
 
     if (!question) {
@@ -57,23 +54,15 @@ const generateAIResponse = async (req, res) => {
       });
     }
 
+    // Extract data from the question
     const title = question.title;
     const description = JSON.stringify(question.description);
     const tags = question.tags.map(tag => tag.name);
 
+    // Generate AI response
     const aiResponse = await llm(title, description, tags);
 
-    if (answerbyAI) {
-      return res.status(201).json({
-        success: true,
-        message: "AI answer generated and saved successfully",
-        data: {
-          aiResponse: aiResponse
-        }
-      });
-    }
-
-    // Return just the AI response without saving
+    // Return the AI response
     return res.status(200).json({
       success: true,
       message: "AI response generated successfully",
