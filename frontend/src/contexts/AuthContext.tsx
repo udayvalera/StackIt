@@ -10,7 +10,7 @@ interface User {
 
 interface AuthContextType {
   user: User | null;
-  login: (emailOrUsername: string, password: string) => Promise<void>;
+  login: (emailOrUsername: string, password: string, isAdmin?: boolean) => Promise<void>;
   register: (username: string, email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
   loading: boolean;
@@ -32,42 +32,6 @@ interface AuthProviderProps {
   children: ReactNode;
 }
 
-// Hardcoded users - 3 regular users + 1 admin
-const hardcodedUsers = [
-  {
-    id: 'admin-001',
-    username: 'admin',
-    email: 'admin@stackit.com',
-    password: 'admin123',
-    role: 'Admin' as const,
-    isBanned: false
-  },
-  {
-    id: 'user-001',
-    username: 'john_doe',
-    email: 'john@example.com',
-    password: 'user123',
-    role: 'User' as const,
-    isBanned: false
-  },
-  {
-    id: 'user-002',
-    username: 'jane_smith',
-    email: 'jane@example.com',
-    password: 'user123',
-    role: 'User' as const,
-    isBanned: false
-  },
-  {
-    id: 'user-003',
-    username: 'alex_dev',
-    email: 'alex@example.com',
-    password: 'user123',
-    role: 'User' as const,
-    isBanned: false
-  }
-];
-
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
@@ -78,102 +42,97 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const checkSession = async () => {
     try {
-      // Check localStorage for saved session
-      const savedUser = localStorage.getItem('stackit_user');
-      if (savedUser) {
-        const userData = JSON.parse(savedUser);
-        // Check if user is banned
-        const currentUser = hardcodedUsers.find(u => u.id === userData.id);
-        if (currentUser && !currentUser.isBanned) {
-          setUser(userData);
-        } else {
-          localStorage.removeItem('stackit_user');
-        }
+      const response = await fetch('/api/user/auth/verify', {
+        method: 'GET',
+        credentials: 'include', // Include cookies for JWT
+      });
+      const data = await response.json();
+      if (response.ok && data.user) {
+        setUser(data.user);
+      } else {
+        localStorage.removeItem('stackit_user');
       }
     } catch (error) {
       console.error('Session check failed:', error);
+      localStorage.removeItem('stackit_user');
     } finally {
       setLoading(false);
     }
   };
 
-  const login = async (emailOrUsername: string, password: string) => {
-    // Simulate API delay
-    await new Promise(resolve => setTimeout(resolve, 500));
+  const login = async (emailOrUsername: string, password: string, isAdmin: boolean = false) => {
+    const endpoint = isAdmin ? '/api/admin/auth/login' : '/api/user/auth/login';
+    const response = await fetch(endpoint, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include', // Include cookies for JWT
+      body: JSON.stringify({ username: emailOrUsername, password }),
+    });
 
-    const foundUser = hardcodedUsers.find(u => 
-      (u.email === emailOrUsername || u.username === emailOrUsername) && 
-      u.password === password
-    );
-
-    if (!foundUser) {
-      throw new Error('Invalid credentials');
+    const data = await response.json();
+    if (!response.ok) {
+      throw new Error(data.message || 'Login failed');
     }
 
-    if (foundUser.isBanned) {
+    if (data.user.isBanned) {
       throw new Error('Your account has been banned. Please contact support.');
     }
 
-    const userData: User = {
-      id: foundUser.id,
-      username: foundUser.username,
-      email: foundUser.email,
-      role: foundUser.role,
-      isBanned: foundUser.isBanned
-    };
-
-    setUser(userData);
-    localStorage.setItem('stackit_user', JSON.stringify(userData));
+    setUser(data.user);
+    localStorage.setItem('stackit_user', JSON.stringify(data.user));
   };
 
   const register = async (username: string, email: string, password: string) => {
-    // Simulate API delay
-    await new Promise(resolve => setTimeout(resolve, 500));
+    const response = await fetch('/api/user/auth/register', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include', // Include cookies for JWT
+      body: JSON.stringify({ username, email, password }),
+    });
 
-    // Check if user already exists
-    const existingUser = hardcodedUsers.find(u => u.email === email || u.username === username);
-    if (existingUser) {
-      throw new Error('User already exists with this email or username');
+    const data = await response.json();
+    if (!response.ok) {
+      throw new Error(data.message || 'Registration failed');
     }
 
-    // Create new user
-    const newUser = {
-      id: `user-${Date.now()}`,
-      username,
-      email,
-      password,
-      role: 'User' as const,
-      isBanned: false
-    };
-
-    hardcodedUsers.push(newUser);
-
-    // Auto-login after registration
-    await login(email, password);
+    setUser(data.user);
+    localStorage.setItem('stackit_user', JSON.stringify(data.user));
   };
 
   const logout = async () => {
+    await fetch('/api/user/auth/logout', {
+      method: 'POST',
+      credentials: 'include', // Include cookies for JWT
+    });
     setUser(null);
     localStorage.removeItem('stackit_user');
   };
 
   const banUser = async (userId: string) => {
-    // Simulate API delay
-    await new Promise(resolve => setTimeout(resolve, 200));
-    
-    const userIndex = hardcodedUsers.findIndex(u => u.id === userId);
-    if (userIndex !== -1) {
-      hardcodedUsers[userIndex].isBanned = true;
+    const response = await fetch('/api/admin/ban', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include', // Include cookies for JWT
+      body: JSON.stringify({ userId }),
+    });
+
+    if (!response.ok) {
+      const data = await response.json();
+      throw new Error(data.message || 'Failed to ban user');
     }
   };
 
   const unbanUser = async (userId: string) => {
-    // Simulate API delay
-    await new Promise(resolve => setTimeout(resolve, 200));
-    
-    const userIndex = hardcodedUsers.findIndex(u => u.id === userId);
-    if (userIndex !== -1) {
-      hardcodedUsers[userIndex].isBanned = false;
+    const response = await fetch('/api/admin/unban', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include', // Include cookies for JWT
+      body: JSON.stringify({ userId }),
+    });
+
+    if (!response.ok) {
+      const data = await response.json();
+      throw new Error(data.message || 'Failed to unban user');
     }
   };
 
