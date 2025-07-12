@@ -9,7 +9,7 @@ const prompts_user = (Title,Decription,Tags) => {
 const prompts_system = () => {
     return `
     You are a Q/A expert. You will be given a title as question , a brief description and tags related to that question.
-    Your task is provide a detailed answer to the question based on the description and tags.
+    Your task is provide a detailed answer but not too long to the question based on the description and tags.
     `;
 }
 

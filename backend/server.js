@@ -10,6 +10,7 @@ const PORT = process.env.PORT || 3000;
 //Routes
 const adminRoutes = require('./routes/admin/adminRoutes');
 const userRoutes = require('./routes/user/userRoutes');
+const aiRoutes = require('./routes/AI/aiRoutes')
 
 
 // Middleware
@@ -29,6 +30,7 @@ app.get("/", (req, res) => {
 
 app.use("/api/admin", adminRoutes);
 app.use("/api/user", userRoutes);
+app.use("/api/ai", aiRoutes);
 
 
 app.listen(PORT, () => {

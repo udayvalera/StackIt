@@ -7,7 +7,7 @@ const llm = async (Title,Description,Tags) => {
     const user = prompts_user(Title, Description, Tags);
     const system = prompts_system();
     const response = await getGroqChatCompletion(system, user);
-    console.log(response);
+    console.log(response.choices[0].message.content);
     return response.choices[0].message.content;
 }
 
