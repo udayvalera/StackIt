@@ -4,37 +4,67 @@ const prisma = new PrismaClient();
 
 /**
  * Controller to get a paginated list of questions (feed).
- * Allows filtering by tags.
+ * Allows filtering by tags and sorting by different criteria.
  *
  * @param {object} req - The Express request object.
  * @param {object} res - The Express response object.
  */
 const getQuestions = async (req, res) => {
   try {
-    // --- 1. PAGINATION ---
-    // Set default page and pageSize if not provided in the query string
+    // --- 1. PAGINATION & FILTER PARAMETERS ---
     const page = parseInt(req.query.page, 10) || 1;
     const pageSize = parseInt(req.query.pageSize, 10) || 10;
     const skip = (page - 1) * pageSize;
 
-    // --- 2. TAG FILTERING ---
-    // Get tags from query string, expecting a comma-separated list
-    const { tags } = req.query;
-    let tagFilter = {};
+    // Get filter, and tags from the query string
+    const { filter, tags } = req.query;
 
+    // --- 2. BUILD DATABASE QUERY CONDITIONS ---
+    let whereClause = {};
+    let orderByClause = {};
+
+    // -- Tag Filtering --
     if (tags) {
       const tagList = tags.split(',').map(tag => tag.trim());
-      // If tags are provided, construct the filter to find questions
-      // that have at least one of the specified tags.
-      tagFilter = {
-        tags: {
-          some: {
-            name: {
-              in: tagList,
-            },
+      whereClause.tags = {
+        some: {
+          name: {
+            in: tagList,
           },
         },
       };
+    }
+
+    // -- Sorting and Filtering Logic --
+    // A note on "Most Voted": Your current schema tracks votes on Answers, not Questions.
+    // To sort questions by votes, you would need to aggregate votes from all answers per question,
+    // which is complex for a simple query. A better approach is to add a 'voteScore' field
+    // to your Question model. For now, 'most_answered' is a great proxy for popular questions.
+    switch (filter) {
+      case 'most_answered':
+        orderByClause = {
+          answers: {
+            _count: 'desc',
+          },
+        };
+        break;
+
+      case 'unanswered':
+        whereClause.answers = {
+          none: {},
+        };
+        orderByClause = {
+            createdAt: 'desc', // Show newest unanswered questions first
+        };
+        break;
+
+      case 'newest':
+      default:
+        // Default to sorting by the most recently created questions
+        orderByClause = {
+          createdAt: 'desc',
+        };
+        break;
     }
 
     // --- 3. DATABASE QUERY ---
@@ -42,12 +72,9 @@ const getQuestions = async (req, res) => {
     const questions = await prisma.question.findMany({
       skip,
       take: pageSize,
-      where: tagFilter,
-      // Order by the most recently created questions
-      orderBy: {
-        createdAt: 'desc',
-      },
-      // Include related author and tag information
+      where: whereClause,
+      orderBy: orderByClause,
+      // Include related author, tags, and answer count
       include: {
         author: {
           select: {
@@ -61,20 +88,18 @@ const getQuestions = async (req, res) => {
             name: true,
           },
         },
-        // Use _count to get the number of related answers for each question
         _count: {
           select: { answers: true },
         },
       },
     });
 
-    // Get the total count of questions that match the filter for pagination metadata
+    // Get the total count of questions that match the filter for pagination
     const totalQuestions = await prisma.question.count({
-      where: tagFilter,
+      where: whereClause,
     });
 
     // --- 4. FORMAT RESPONSE ---
-    // Map over the questions to create the desired response structure
     const formattedQuestions = questions.map(question => ({
       id: question.id,
       title: question.title,
@@ -82,7 +107,6 @@ const getQuestions = async (req, res) => {
       createdAt: question.createdAt,
       author: question.author,
       tags: question.tags,
-      // The count of answers is available in the _count property
       answerCount: question._count.answers,
     }));
 
@@ -111,5 +135,5 @@ const getQuestions = async (req, res) => {
 };
 
 module.exports = {
-  getQuestions
-}
+  getQuestions,
+};
